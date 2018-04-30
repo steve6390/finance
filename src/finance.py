@@ -141,12 +141,12 @@ def item_chosen(button):
     done = menu_button(u'Ok', exit_program)
     top.open_box(urwid.Filler(urwid.Pile([response, done])))
 
-def item_state_change(checkbox, new_state):
-    label = checkbox.get_label()
-    # if new_state:
-    #     checkbox.set_label([('bold', label)])
-    # else:
-    #     checkbox.set_label([('default', label)])
+def item_state_change(cb, new_state):
+    text = cb.get_label()
+    if new_state:
+        cb.set_label([('checked', text)])
+    else:
+        cb.set_label([('normal', text)])
 
 
 def exit_program(button):
@@ -205,7 +205,8 @@ class CascadingBoxes(urwid.WidgetPlaceholder):
 
 palette = [
     ('normal', 'white', 'dark gray', '', 'white', 'g19'),
-    ('infocus', 'light blue', 'dark gray', '', 'light blue', 'g19'),
+    ('infocus', 'white', 'dark gray', '', 'white', 'g19'),
+    ('checked', 'light blue', 'dark gray', '', 'light blue', 'g19'),
     ('bg', 'black', 'dark gray', '', 'black', 'g19'),]
 
 top = CascadingBoxes(menu_top)
