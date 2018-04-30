@@ -18,7 +18,7 @@ parser.add_argument('--current_month', dest='current_month', action='store_true'
 args = parser.parse_args()
 
 processing_date = datetime.datetime.now()
-# Narrow the search to last month.
+# By default, narrow the search to last month.
 if not args.current_month:
     processing_date = processing_date + dateutil.relativedelta.relativedelta(months=-1)
 
@@ -143,10 +143,10 @@ def item_chosen(button):
 
 def item_state_change(checkbox, new_state):
     label = checkbox.get_label()
-    if new_state:
-        checkbox.set_label([('bold', label)])
-    else:
-        checkbox.set_label([('default', label)])
+    # if new_state:
+    #     checkbox.set_label([('bold', label)])
+    # else:
+    #     checkbox.set_label([('default', label)])
 
 
 def exit_program(button):
@@ -155,12 +155,15 @@ def exit_program(button):
 # Create the submenu for personal expense items.
 personal_submenu = []
 for c in personal_choices:
-    personal_submenu.append(urwid.CheckBox(c,on_state_change=item_state_change))
+    cb = urwid.CheckBox(c,on_state_change=item_state_change)
+    personal_submenu.append(cb)
 
 # Create the submenu for unknown expense items.
 unknown_submenu = []
 for c in unknown_choices:
-    unknown_submenu.append(urwid.CheckBox(c,on_state_change=item_state_change))
+    cb = urwid.CheckBox(c,on_state_change=item_state_change)
+    map = urwid.AttrMap(cb, None, focus_map='infocus')
+    unknown_submenu.append(map)
 
 menu_top = menu(u'Main Menu', [
     sub_menu(u'Personal', personal_submenu),
@@ -200,5 +203,10 @@ class CascadingBoxes(urwid.WidgetPlaceholder):
         else:
             return super(CascadingBoxes, self).keypress(size, key)
 
+palette = [
+    ('normal', 'white', 'dark gray', '', 'white', 'g19'),
+    ('infocus', 'light blue', 'dark gray', '', 'light blue', 'g19'),
+    ('bg', 'black', 'dark gray', '', 'black', 'g19'),]
+
 top = CascadingBoxes(menu_top)
-urwid.MainLoop(top, palette=[('reversed', 'standout', '')]).run()
+urwid.MainLoop(top, palette=palette).run()
