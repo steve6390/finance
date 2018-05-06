@@ -8,6 +8,22 @@ import argparse
 import urwid
 
 
+def menu_button(caption, callback):
+    button = urwid.Button(caption)
+    urwid.connect_signal(button, 'click', callback)
+    return urwid.AttrMap(button, None, focus_map='reversed')
+
+def sub_menu(caption, choices):
+    contents = menu(caption, choices)
+    def open_menu(button):
+        return top.open_box(contents)
+    return menu_button([caption, u'...'], open_menu)
+
+def menu(title, choices):
+    body = [urwid.Text(title), urwid.Divider()]
+    body.extend(choices)
+    return urwid.ListBox(urwid.SimpleFocusListWalker(body))
+
 parser = argparse.ArgumentParser(description='Process monthly finances.')
 parser.add_argument('--new', dest='get_new', action='store_true',
                        help='Download new transactions from Mint.com')
@@ -62,7 +78,6 @@ joint_df = pandas.DataFrame()
 personal_df = pandas.DataFrame()
 unknown_df = pandas.DataFrame()
 
-print(joint_set)
 for index, row in df.iterrows():
     desc = row['description']
     print("index", index, "description =", desc)
@@ -93,55 +108,12 @@ personal_choices = []
 for index, row in personal_df.iterrows():
     personal_choices.append(format_transaction(row))
 
-# def menu(title, choices):
-#     body = [urwid.Text(title), urwid.Divider()]
-#     for c in choices:
-#         button = urwid.Button(c)
-#         urwid.connect_signal(button, 'click', item_chosen, c)
-#         body.append(urwid.AttrMap(button, None, focus_map='reversed'))
-#     return urwid.ListBox(urwid.SimpleFocusListWalker(body))
-
-# def item_chosen(button, choice):
-#     response = urwid.Text([u'You chose ', choice, u'\n'])
-#     done = urwid.Button(u'Ok')
-#     urwid.connect_signal(done, 'click', exit_program)
-#     main.original_widget = urwid.Filler(urwid.Pile([response,
-#         urwid.AttrMap(done, None, focus_map='reversed')]))
-
-# def exit_program(button):
-#     raise urwid.ExitMainLoop()
-
-# main = urwid.Padding(menu(u'Pythons', joint_choices), left=2, right=2)
-# top = urwid.Overlay(main, urwid.SolidFill(u'\N{MEDIUM SHADE}'),
-#     align='center', width=('relative', 60),
-#     valign='middle', height=('relative', 60),
-#     min_width=20, min_height=9)
-# urwid.MainLoop(top, palette=[('reversed', 'standout', '')]).run()
-
-# cascaded
-
-def menu_button(caption, callback):
-    button = urwid.Button(caption)
-    urwid.connect_signal(button, 'click', callback)
-    return urwid.AttrMap(button, None, focus_map='reversed')
-
-def sub_menu(caption, choices):
-    contents = menu(caption, choices)
-    def open_menu(button):
-        return top.open_box(contents)
-    return menu_button([caption, u'...'], open_menu)
-
-def menu(title, choices):
-    body = [urwid.Text(title), urwid.Divider()]
-    body.extend(choices)
-    return urwid.ListBox(urwid.SimpleFocusListWalker(body))
-
 def item_chosen(button):
     response = urwid.Text([u'You chose ', button.label, u'\n'])
     done = menu_button(u'Ok', exit_program)
     top.open_box(urwid.Filler(urwid.Pile([response, done])))
 
-def item_state_change(cb, new_state):
+def unknown_state_change(cb, new_state):
     text = cb.get_label()
     if new_state:
         cb.set_label([('checked', text)])
@@ -152,28 +124,34 @@ def item_state_change(cb, new_state):
 def exit_program(button):
     raise urwid.ExitMainLoop()
 
+def create_csv(dummy):
+    for index, row in joint_df.iterrows():
+        print("{}", format_transaction(row))
+
 # Create the submenu for personal expense items.
 personal_submenu = []
 for c in personal_choices:
-    cb = urwid.CheckBox(c,on_state_change=item_state_change)
+    cb = urwid.CheckBox(c)
     personal_submenu.append(cb)
+
+# Create the submenu for personal expense items.
+joint_submenu = []
+for c in joint_choices:
+    cb = urwid.CheckBox(c)
+    joint_submenu.append(cb)
 
 # Create the submenu for unknown expense items.
 unknown_submenu = []
 for c in unknown_choices:
-    cb = urwid.CheckBox(c,on_state_change=item_state_change)
-    map = urwid.AttrMap(cb, None, focus_map='infocus')
+    cb = urwid.CheckBox(c,on_state_change=unknown_state_change, user_data=row)
+    map = urwid.AttrMap(cb, 'default', focus_map='infocus')
     unknown_submenu.append(map)
 
 menu_top = menu(u'Main Menu', [
     sub_menu(u'Personal', personal_submenu),
-    sub_menu(u'Joint Reimbursable', [
-        sub_menu(u'Accessories', [
-            menu_button(u'Text Editor', item_chosen),
-            menu_button(u'Terminal', item_chosen),
-        ]),
-    ]),
-    sub_menu(u'Unknown Transactions.  Select items that are joint reimbursable.', unknown_submenu)
+    sub_menu(u'Joint Reimbursable', joint_submenu),
+    sub_menu(u'Unknown Transactions.  Select items that are joint reimbursable.', unknown_submenu),
+    urwid.Button(u'Create .csv.', create_csv)
 ])
 
 class CascadingBoxes(urwid.WidgetPlaceholder):
