@@ -24,38 +24,8 @@ def menu(title, choices):
     body.extend(choices)
     return urwid.ListBox(urwid.SimpleFocusListWalker(body))
 
-parser = argparse.ArgumentParser(description='Process monthly finances.')
-parser.add_argument('--new', dest='get_new', action='store_true',
-                       help='Download new transactions from Mint.com')
-
-parser.add_argument('--current_month', dest='current_month', action='store_true',
-                       help='Process current month instead of previous month.')
-
-args = parser.parse_args()
-
-processing_date = datetime.datetime.now()
-# By default, narrow the search to last month.
-if not args.current_month:
-    processing_date = processing_date + dateutil.relativedelta.relativedelta(months=-1)
-
-month = processing_date.strftime('%B')
-year = processing_date.strftime('%Y')
-year_month = processing_date.strftime('%Y-%m')
-
-print("Calculating finances for", month, year, '(' + year_month + ')')
-
-print("Loading transaction tag file.")
-joint_set = set()
-personal_set = set()
-with open('tags.csv') as tagsfile:
-    tags = csv.reader(tagsfile)
-    for row in tags:
-        if row[0] == "joint":
-            joint_set.add(row[1].strip())
-        if row[0] == "personal":
-            personal_set.add(row[1].strip())
-
-if args.get_new:
+# Get new transactions from Mint and put them in a pickle.
+def get_new_transactions():
     print("Retrieving login name a password.")
     with open('no_checkin.txt') as f:
         user = f.readline().strip()
@@ -66,12 +36,55 @@ if args.get_new:
     transactions = mint.get_transactions()
     transactions.to_pickle("transactions.pkl")
 
+# Format a transaction in a consistent manner.
+def format_transaction(row):
+    return '{}, {:30}, {:>10.2f}'.format(row.date.date(), row.description, row.amount)
+
+def get_well_known_transactions():
+    joint_set = set()
+    personal_set = set()
+    with open('tags.csv') as tagsfile:
+        tags = csv.reader(tagsfile)
+        for row in tags:
+            if row[0] == "joint":
+                joint_set.add(row[1].strip())
+            if row[0] == "personal":
+                personal_set.add(row[1].strip())
+    return joint_set, personal_set
+
+parser = argparse.ArgumentParser(description='Process monthly finances.')
+parser.add_argument('--new', dest='get_new', action='store_true',
+                       help='Download new transactions from Mint.com')
+
+parser.add_argument('--current_month', dest='current_month', action='store_true',
+                       help='Process current month instead of previous month.')
+
+args = parser.parse_args()
+
+
+# Unless the user wants to process the current month,
+# # then process last month.  We only process one month.
+processing_date = datetime.datetime.now()
+if not args.current_month:
+    processing_date = processing_date + dateutil.relativedelta.relativedelta(months=-1)
+
+month = processing_date.strftime('%B')
+year = processing_date.strftime('%Y')
+year_month = processing_date.strftime('%Y-%m')
+
+joint_set, personal_set = get_well_known_transactions()
+
+# Get new transactions from Mint as command line indicates
+if args.get_new:
+    get_new_transactions()
+
+# Possible new transactions are already in the pickle
 transactions = pandas.read_pickle("transactions.pkl")
 
-print("Indexing transactions by date.")
+# Index transactions by date.
 transactions.set_index(['date'], drop=False, inplace=True)
 
-print("Getting transactions from", year_month)
+# Get transactions from the months we're processing.
 df = transactions.loc[year_month]
 
 joint_df = pandas.DataFrame()
@@ -91,10 +104,6 @@ for index, row in df.iterrows():
         personal_df = personal_df.append(row, ignore_index = True)
     else:
         unknown_df = unknown_df.append(row, ignore_index = True)
-
-
-def format_transaction(row):
-    return '{}, {:30}, {:>10.2f}'.format(row.date.date(), row.description, row.amount)
 
 joint_choices = []
 for index, row in joint_df.iterrows():
@@ -143,7 +152,7 @@ for c in joint_choices:
 # Create the submenu for unknown expense items.
 unknown_submenu = []
 for c in unknown_choices:
-    cb = urwid.CheckBox(c,on_state_change=unknown_state_change, user_data=row)
+    cb = urwid.CheckBox(c,on_state_change=unknown_state_change)
     map = urwid.AttrMap(cb, 'default', focus_map='infocus')
     unknown_submenu.append(map)
 
