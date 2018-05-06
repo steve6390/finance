@@ -52,6 +52,26 @@ def get_well_known_transactions():
                 personal_set.add(row[1].strip())
     return joint_set, personal_set
 
+# Takes a pandas dataframe and sorts the transactions
+# into 3 new dataframes: joint, personal and unknown
+def get_data_frames(df):
+    joint_df = pandas.DataFrame()
+    personal_df = pandas.DataFrame()
+    unknown_df = pandas.DataFrame()
+
+    for index, row in df.iterrows():
+        desc = row['description']
+        print("index", index, "description =", desc)
+        # Check if an item matching this description is known to be
+        # joint reimbursable or a personal expense.
+        if desc in joint_set:
+            joint_df = joint_df.append(row, ignore_index = True)
+        elif desc in personal_set:
+            personal_df = personal_df.append(row, ignore_index = True)
+        else:
+            unknown_df = unknown_df.append(row, ignore_index = True)
+    return joint_df, personal_df, unknown_df
+
 parser = argparse.ArgumentParser(description='Process monthly finances.')
 parser.add_argument('--new', dest='get_new', action='store_true',
                        help='Download new transactions from Mint.com')
@@ -87,9 +107,8 @@ transactions.set_index(['date'], drop=False, inplace=True)
 # Get transactions from the months we're processing.
 df = transactions.loc[year_month]
 
-joint_df = pandas.DataFrame()
-personal_df = pandas.DataFrame()
-unknown_df = pandas.DataFrame()
+# Get transactions sorted into joint, personal, unknown
+joint_df, personal_df, unknown_df = get_data_frames(df)
 
 for index, row in df.iterrows():
     desc = row['description']
@@ -97,10 +116,8 @@ for index, row in df.iterrows():
     # Check if an item matching this description is known to be
     # joint reimbursable or a personal expense.
     if desc in joint_set:
-        #print(row['description'], "for", row['amount'], 'is Joint Reimbursable')
         joint_df = joint_df.append(row, ignore_index = True)
     elif desc in personal_set:
-        #print(row['description'], "for", row['amount'], 'is Personal')
         personal_df = personal_df.append(row, ignore_index = True)
     else:
         unknown_df = unknown_df.append(row, ignore_index = True)
