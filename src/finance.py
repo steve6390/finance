@@ -107,18 +107,6 @@ df = transactions.loc[year_month]
 # Get transactions sorted into joint, personal, unknown
 joint_df, personal_df, unknown_df = get_data_frames(df)
 
-for index, row in df.iterrows():
-    desc = row['description']
-    print("index", index, "description =", desc)
-    # Check if an item matching this description is known to be
-    # joint reimbursable or a personal expense.
-    if desc in joint_set:
-        joint_df = joint_df.append(row, ignore_index = True)
-    elif desc in personal_set:
-        personal_df = personal_df.append(row, ignore_index = True)
-    else:
-        unknown_df = unknown_df.append(row, ignore_index = True)
-
 joint_choices = []
 for index, row in joint_df.iterrows():
     joint_choices.append(format_transaction(row))
