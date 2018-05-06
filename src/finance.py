@@ -25,16 +25,13 @@ def menu(title, choices):
     return urwid.ListBox(urwid.SimpleFocusListWalker(body))
 
 # Get new transactions from Mint and put them in a pickle.
-def get_new_transactions():
-    print("Retrieving login name a password.")
+def get_new_transactions(pickle_name):
     with open('no_checkin.txt') as f:
         user = f.readline().strip()
         psw = f.readline().strip()
-    print("Logging into Mint")
     mint = mintapi.Mint(user, psw)
-    print("Retrieving transactions.")
     transactions = mint.get_transactions()
-    transactions.to_pickle("transactions.pkl")
+    transactions.to_pickle(pickle_name)
 
 # Format a transaction in a consistent manner.
 def format_transaction(row):
@@ -96,7 +93,7 @@ joint_set, personal_set = get_well_known_transactions()
 
 # Get new transactions from Mint as command line indicates
 if args.get_new:
-    get_new_transactions()
+    get_new_transactions("transactions.pkl")
 
 # Possible new transactions are already in the pickle
 transactions = pandas.read_pickle("transactions.pkl")
