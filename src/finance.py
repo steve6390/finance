@@ -8,12 +8,10 @@ import argparse
 import urwid
 
 palette = [
-    ('normal',   'light gray',  'dark gray' ),
-    ('infocus',  'white',       'black'     ),
-    ('reversed', 'light cyan',  'dark gray' ),
-    ('standout', 'yellow',      'dark gray' ),
-    ('checked',  'light red',   'dark gray' ),
-    ('bg',       'black',       'dark gray' ),]
+    ('normal', 'white', 'dark gray', '', 'white', 'g19'),
+    ('infocus', 'white', 'dark gray', '', 'white', 'g19'),
+    ('checked', 'light blue', 'dark gray', '', 'light blue', 'g19'),
+    ('bg', 'black', 'dark gray', '', 'black', 'g19'),]
 
 class CascadingBoxes(urwid.WidgetPlaceholder):
     max_box_levels = 4
@@ -45,7 +43,7 @@ class CascadingBoxes(urwid.WidgetPlaceholder):
 def menu_button(caption, callback):
     button = urwid.Button(caption)
     urwid.connect_signal(button, 'click', callback)
-    return urwid.AttrMap(button, None, focus_map='infocus')
+    return urwid.AttrMap(button, None, focus_map='reversed')
 
 def sub_menu(caption, choices):
     contents = menu(caption, choices)
@@ -68,12 +66,13 @@ class Transaction:
         self.tag = tag
         self.pretagged = pretagged
 
-    def __str__(self):
+    def __repr__(self):
         return '{}, {:30}, {:>10.2f}, {:8}, {}'.format(self.date.date(),
             self.desc,
-            #self.amount if self.type == 'debit' else '-'+str(self.amount),
+            # self.amount if self.type == 'debit' else '-'+str(self.amount),
             self.amount,
             self.tag, self.pretagged)
+
 
 # Get new transactions from Mint as a pandas dataframe.
 # Put all transactions in a pickle. Accessing Mint is
@@ -129,13 +128,12 @@ def df_to_transaction(df):
 
 # Convert a dataframe into a list of checkboxes.  The userdata
 # for each checkbox is the corresponding dataframe row
-def get_selection_list(trans_list):
-    sel_list = []
+def get_checkbox_list(trans_list):
+    cb_list = []
     for t in trans_list:
-        cb = urwid.Button(str(t))
-        cb = urwid.AttrMap(cb, None, focus_map='infocus')
-        sel_list.append(cb)
-    return sel_list
+        cb = urwid.CheckBox(str(t))
+        cb_list.append(cb)
+    return cb_list
 
 def exit_urwid(button):
     raise urwid.ExitMainLoop()
@@ -181,19 +179,26 @@ month_df = all_df.loc[year_month]
 joint_trans, personal_trans, unknown_trans = df_to_transaction(month_df)
 
 # Create the submenus for each category
-joint_sel_list = get_selection_list(joint_trans)
-personal_sel_list = get_selection_list(personal_trans)
-unknown_sel_list = get_selection_list(unknown_trans)
+joint_cb_list = get_checkbox_list(joint_trans)
+personal_cb_list = get_checkbox_list(personal_trans)
+unknown_cb_list = get_checkbox_list(unknown_trans)
 
 menu_top = menu(u'Main Menu', [
-    sub_menu(u'Personal', personal_sel_list),
-    sub_menu(u'Joint Reimbursable', joint_sel_list),
-    sub_menu(u'Unknown Transactions.  Select items that are joint reimbursable.', unknown_sel_list),
+    sub_menu(u'Personal', personal_cb_list),
+    sub_menu(u'Joint Reimbursable', joint_cb_list),
+    sub_menu(u'Unknown Transactions.  Select items that are joint reimbursable.', unknown_cb_list),
     urwid.Button(u'Done', exit_urwid)
 ])
 
 top = CascadingBoxes(menu_top)
 urwid.MainLoop(top, palette=palette).run()
+
+# Copy checked unknown transactions to joint
+for t, cb in list(zip(unknown_trans, unknown_cb_list)):
+    # assert(str(t) == cb.label())
+    if cb.get_state() == True:
+        t.tag = "joint"
+        joint_trans.append(t)
 
 for t in joint_trans:
     print(str(t))
