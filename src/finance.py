@@ -138,10 +138,6 @@ def get_checkbox_list(trans_list):
 def exit_urwid(button):
     raise urwid.ExitMainLoop()
 
-def create_csv(dummy):
-    for index, row in joint_df.iterrows():
-        print("{}", format_transaction(row))
-
 parser = argparse.ArgumentParser(description='Process monthly finances.')
 parser.add_argument('--new', dest='get_new', action='store_true',
                        help='Download new transactions from Mint.com')
@@ -194,12 +190,16 @@ top = CascadingBoxes(menu_top)
 urwid.MainLoop(top, palette=palette).run()
 
 # Copy checked unknown transactions to joint
+# This list(zip()) iterates both lists at once
 for t, cb in list(zip(unknown_trans, unknown_cb_list)):
-    # assert(str(t) == cb.label())
+    assert(str(t) == cb.label)
     if cb.get_state() == True:
         t.tag = "joint"
         joint_trans.append(t)
 
+total = 0
 for t in joint_trans:
     print(str(t))
+    total = total + t.amount
 
+print("\nTotal, {:>10.2f}".format(total))
