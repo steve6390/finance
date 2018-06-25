@@ -197,9 +197,16 @@ for t, cb in list(zip(unknown_trans, unknown_cb_list)):
         t.tag = "joint"
         joint_trans.append(t)
 
+csv_str = ""
 total = 0
 for t in joint_trans:
-    print(str(t))
+    csv_str += str(t) + "\n"
     total = total + t.amount
 
-print("\nTotal, {:>10.2f}".format(total))
+csv_str += "\nTotal, {:>10.2f}\n".format(total)
+
+print(csv_str)
+
+csv_file = open(year_month + ".csv", "w")
+csv_file.write(csv_str)
+csv_file.close()
