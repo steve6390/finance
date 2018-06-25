@@ -7,6 +7,11 @@ import csv
 import argparse
 import urwid
 
+import httplib2
+import apiclient.discovery
+import apiclient.http
+import oauth2client.client
+
 palette = [
     ('normal', 'white', 'dark gray', '', 'white', 'g19'),
     ('infocus', 'white', 'dark gray', '', 'white', 'g19'),
@@ -138,6 +143,54 @@ def get_checkbox_list(trans_list):
 def exit_urwid(button):
     raise urwid.ExitMainLoop()
 
+# Authorize and create a google drive service
+def get_drive_service():
+    # OAuth 2.0 scope that will be authorized.
+    # Check https://developers.google.com/drive/scopes for all available scopes.
+    OAUTH2_SCOPE = 'https://www.googleapis.com/auth/drive.file'
+
+    # Location of the client secrets.
+    CLIENT_SECRETS = 'client_secrets.json'
+
+    # Perform OAuth2.0 authorization flow.
+    flow = oauth2client.client.flow_from_clientsecrets(CLIENT_SECRETS, OAUTH2_SCOPE)
+    flow.redirect_uri = oauth2client.client.OOB_CALLBACK_URN
+    authorize_url = flow.step1_get_authorize_url()
+    print('Go to the following link in your browser: ' + authorize_url)
+    code = input('Enter verification code: ').strip()
+    credentials = flow.step2_exchange(code)
+
+    # Create an authorized Drive API client.
+    http = httplib2.Http()
+    credentials.authorize(http)
+    drive_service = apiclient.discovery.build('drive', 'v2', http=http)
+    return drive_service
+
+# Upload a file as a google sheets csv file
+# see https://developers.google.com/drive/api/v3/manage-uploads
+# input is the file name including csv extension
+def upload_google_sheet(name):
+
+    # Insert a file. Files are comprised of contents and metadata.
+    # MediaFileUpload abstracts uploading file contents from a file on disk.
+    media_body = apiclient.http.MediaFileUpload(
+        name,
+        mimetype='text/csv',
+        resumable=True
+    )
+    # The body contains the metadata for the file.
+    body = {
+    'title': name,
+    'description': 'Monthly expenses uploaded by finance.py.',
+    'mimeType': 'application/vnd.google-apps.spreadsheet'
+    }
+
+    # get an authorized google drive service instance
+    drive_service = get_drive_service()
+    # Perform the request and print the result.
+    new_file = drive_service.files().insert(body=body, media_body=media_body).execute()
+
+
 parser = argparse.ArgumentParser(description='Process monthly finances.')
 parser.add_argument('--new', dest='get_new', action='store_true',
                        help='Download new transactions from Mint.com')
@@ -207,6 +260,10 @@ csv_str += "\nTotal, {:>10.2f}\n".format(total)
 
 print(csv_str)
 
-csv_file = open(year_month + ".csv", "w")
+csv_file_name = year_month + ".csv"
+csv_file = open(csv_file_name, "w")
 csv_file.write(csv_str)
 csv_file.close()
+
+upload_google_sheet(csv_file_name)
+
